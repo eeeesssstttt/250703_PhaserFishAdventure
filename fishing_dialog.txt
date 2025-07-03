@@ -1,0 +1,39 @@
+===_1stfish===
+As you pull the fish ot of the water, a single yellow eye facing you, it speaks:
+"I'll answer any question you have, if you release me."
++ (release the fish) -> _1strelease
++ (don't release the fish) -> nonrelease
+
+===_1strelease===
+You drop the fish back into the water.
+It swims in circles, waiting.
++ Why do fish bite when there's no bait? -> message
++ What's in the water? -> water
++ Do fish feel pain? -> fishpain
+
+===message===
+"Because the ones who speak want to send a message." -> keepfishing
+
+===water===
+"There's a fine green mist near the surface." -> keepfishing
+
+===fishpain===
+"Yes."-> keepfishing
+
+===keepfishing===
+Keep fishing?
++ Yes -> _2ndfish
++ No -> end
+
+===_2ndfish===
+As you wait for another fish to bite, your thoughts wander. 
+You feel a powerful fish pull the line deep into the water.
+You try to draw it out and preserve your fishing pole. 
+Its pale face appears near the surface.
+The line snaps. -> end
+
+===nonrelease===
+You decide to keep the fish and put it in your plastic bucket. The fish flops around sadly. -> keepfishing
+
+===end===
+You walk away from the water. New Jersey fish are a special kind.

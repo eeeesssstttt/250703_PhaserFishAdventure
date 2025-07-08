@@ -1,3 +1,49 @@
+var script = 
+`
+===startFishing===
+Start fishing?
++ Yes -> _1stFish
++ No -> noFishing
+
+===_1stFish===
+As you pull the fish ot of the water, a single yellow eye facing you, it speaks:
+"I'll answer any question you have, if you release me."
++ (release the fish) -> _1stRelease
++ (don't release the fish) -> nonRelease
+
+===_1stRelease===
+You drop the fish back into the water. It swims in circles, waiting.
++ Why do fish bite when there's no bait? -> message
++ What's in the water? -> water
++ Do fish feel pain? -> fishPain
+
+===message===
+"Because the ones who speak want to send a message." -> keepFishing
+
+===water===
+"There's a fine green mist near the surface." -> keepFishing
+
+===fishPain===
+"Yes." -> keepFishing
+
+===keepFishing===
+Keep fishing?
++ Yes -> _2ndFish
++ No -> end
+
+===_2ndFish===
+As you wait for another fish to bite, your thoughts wander. You feel a powerful fish pull the line deep into the water. You try to draw it out and preserve your fishing pole. Its pale face appears near the surface.
+The line snaps. -> end
+
+===nonRelease===
+You decide to keep the fish and put it in your plastic bucket. The fish flops around sadly. -> keepFishing
+
+===noFishing===
+You sit by the water and enjoy the landscape. Who needs to know what lies under the waves?
+
+===end===
+You walk away from the water. New Jersey fish are a special kind.
+`
 // console.log("Hi!")
 
 // var text = "hullo";
@@ -90,145 +136,58 @@ You decide to keep the fish and put it in your plastic bucket. The fish flops ar
 You walk away from the water. New Jersey fish are a special kind.
 `
 
-// `
-// "Hey!"
-// "It’s a watch."
-// + A watch? ->watch
-// + What is it for? ->forWhat
-// ===watch===
-// "Yeah, it’s a watch. It tells the time."
-// "My father gave it to me. Went through hell and back with him"
-// + What is it for? ->forWhat
-// + can I have it? ->give
-// + It's not vey usefull? ->angry
-// ===forWhat===
-// "It tells time."
-// "When to eat, sleep, wake up, work." ->end
-// ===give===
-// "Sure, take it"
-// "I cannot tell the time now" ->end
-// ===angry===
-// "You are very rude"
-// "Go Away" ->end
-// ===end===
-// END
-// `
-
-// var scriptAsList = textToList(rawScript)
-
-// function buildScript(scriptList){
-//     var convertedScript = []
-//     for (let i = 0; i < scriptList.length; i++){
-//         switch (scriptList[i][0]){
-//             case '+':
-//                 convertedScript.push(questionToObject(scriptList[i]));
-//                 break;
-//             case '=':
-//                 convertedScript.push(tagToObject(scriptList[i]));
-//                 break;
-//             default:
-//                 convertedScript.push(textToObject(scriptList[i]));
-//                 break;
-//         }
-//     }
-//     return convertedScript;
-// }
-
-// script = buildScript(scriptAsList);
-
-// var anchor = 0;
-
-// for (i = anchor; i < script.length; i++){
-//     console.log(script[i]);
-//     // if (script[i]['m']){
-//     //     displayedText = script[i]['m'];
-//     // }
-//     if (script[i]['q']){
-//         break;
-//     }
-// }
-
-// var displayedText = "Hi Mom";
-
-// var canvas = document.createElement("canvas");
-// canvas.height = window.innerHeight;
-// canvas.width = window.innerWidth;
-// document.body.appendChild(canvas);
-
-// var ctx = canvas.getContext("2d");
-
-// ctx.font = "42px Arial";
-// ctx.fillText(displayedText, 100, 100);
-
-var createDialogEngine = function(script, displayMessage, displayQuestion){
+export var createDialogEngine = function(script, displayMainText, displayResponse){
     var self = {};
-    var storyItems = undefined;
+    var story = undefined;
 
-///FORMATTING
+    //FORMATTING
 
     //convert text to list of strings
-    var scriptAsList = scriptToList(script)
+    var scriptList = scriptToList(script)
     function scriptToList(script){
         return script.split("\n").filter((word) => word.length>0);
     }
 
     //convert list of strings to list of objects
-    storyItems = toObject(scriptAsList)
-    function toObject(scriptAsList){
+    story = toObject(scriptList)
+    function toObject(scriptList){
         var listOfObjects = [];
-        for (let i = 0; i < scriptAsList.length; i++){
-            if (scriptAsList[i][0] == '='){ //is a scene
-                var formattedText = scriptAsList[i].replace("===", "").replace("===", "");
+        for (let i = 0; i < scriptList.length; i++){
+            if (scriptList[i][0] == '='){ //is a scene
+                var formattedText = scriptList[i].replace("===", "").replace("===", "");
                 listOfObjects.push({s: formattedText});
-            } else if (scriptAsList[i][0] == '+'){ //is a question
-                var splitQuestion = scriptAsList[i].split("->");
-                var formattedQuestion = splitQuestion[0].substring(1).trim();
-                listOfObjects.push({q: formattedQuestion, go: splitQuestion[1].trim()});
-            } else{ //is a message
-                var splitMessage = scriptAsList[i].split("->");
-                listOfObjects.push({m: splitMessage[0].trim(), go: splitMessage[1]?.trim()});
+            } else if (scriptList[i][0] == '+'){ //is a response
+                var splitResponse = scriptList[i].split("->");
+                var formattedResponse = splitResponse[0].substring(1).trim();
+                listOfObjects.push({r: formattedResponse, go: splitResponse[1].trim()});
+            } else{ //is main text
+                var splitMainText = scriptList[i].split("->");
+                listOfObjects.push({m: splitMainText[0].trim(), go: splitMainText[1]?.trim()});
             }
         }
         return listOfObjects;
     }
 
-///PROCESSING
+    //PROCESSING
 
-    function readStory(storyItems, index){
+    function readStory(story, index){
         if (index == -1){index = 0}
         var i = index;
-        // for (let i = anchor; i < storyItems.length; i++){
-            // if (storyItems[i].m){
-            //     if (displayMessage){
-            //         displayMessage(storyItems[i], self);
-            //         if (storyItems[i].go){
-            //             goTo(storyItems[i].go);
-            //             return 'newChapter';
-            //         }
-            //     }
-            // } else if (storyItems[i].q){
-            //     if (displayQuestion){
-            //         displayQuestion(storyItems[i], self);
-            //     }
-            // } else if (storyItems[i].s){
-            //     return 'waiting for selection';
-            // }
-        // }
 
-        if (storyItems[i].m){
-            if (displayMessage){
-                displayMessage(storyItems[i]);
-            } if (storyItems[i].go){
-                    goTo(storyItems[i].go);
+        if (story[i].m){
+            if (displayMainText){
+                displayMainText(story[i]);
+            } if (story[i].go){
+                    goTo(story[i].go);
                     return 'newChapter';
             } 
-            setTimeout(() => {readStory(storyItems, i+1)}, 800);
-        } else if (storyItems[i].q){
-            if (displayQuestion){
-                displayQuestion(storyItems[i], self);
+            setTimeout(() => {readStory(story, i+1)}, 800);
+        } else if (story[i].r){
+            if (displayResponse){
+                displayResponse(story[i], self);
             }
-            setTimeout(() => {readStory(storyItems, i+1)}, 800);
-        } else if (storyItems[i].s){
+            setTimeout(() => {readStory(story, i+1)}, 800);
+        } else if (story[i].s){
             return 'waiting for selection';
         }
 
@@ -236,11 +195,11 @@ var createDialogEngine = function(script, displayMessage, displayQuestion){
     }
 
     function start(){
-        readStory(storyItems, 1);
+        readStory(story, 1);
     }
 
     function goTo(anchor){
-        readStory(storyItems, findScene(anchor));
+        readStory(story, findScene(anchor));
     }
 
     // function addCustomMessage(message){
@@ -248,8 +207,7 @@ var createDialogEngine = function(script, displayMessage, displayQuestion){
     // }
 
     function findScene(anchor){
-        // return storyItems.map(x => x.s).indexOf(anchor) + 1;
-        return storyItems.findIndex(x => x.s === anchor) + 1;
+        return story.findIndex(x => x.s === anchor) + 1;
     }
 
     self.start = start;
@@ -258,48 +216,35 @@ var createDialogEngine = function(script, displayMessage, displayQuestion){
     return self;
 }
 
-function displayMessage(data){
-    // console.log(data);
+function displayMainText(data){
     var domElement = document.createElement("div");
     domElement.innerHTML = data.m;
     document.body.appendChild(domElement);
 }
 
-function displayResponse(response){
-    var domElement = document.createElement("div");
-    domElement.innerHTML = response;
-    domElement.style.color = "seagreen"
-    document.body.appendChild(domElement);
-}
-
 var currentButtons = [];
 
-function displayQuestion(data, currentDialog){
-    // console.log(data);
+function displayResponse(data, currentDialog){
     var domElement = document.createElement("button");
     currentButtons.push(domElement);
-    domElement.innerHTML = data.q;
+    domElement.innerHTML = data.r;
     domElement.style.backgroundColor = "darkseagreen";
     domElement.style.display = 'block';
     domElement.style.margin = '10px';
     document.body.appendChild(domElement);
 
     function triggerButton(event){
-        // console.log(data);
-        // console.log(currentButtons)
         for(let i = 0; i < currentButtons.length; i++){
             currentButtons[i].style.display = "none";
         }
-        // currentDialog.addCustomMessage(data.q);
-        displayResponse(data.q);
+        // currentDialog.addCustomMessage(data.r);
+        displayResponse(data.r);
 
-        // alert("button pressed");
-        // console.log(currentDialog.goTo);
         currentDialog.goTo(data.go);
     }
 
     domElement.addEventListener("click", triggerButton);
 }
 
-var dialog = createDialogEngine(script, displayMessage, displayQuestion);
+var dialog = createDialogEngine(script, displayMainText, displayResponse);
 dialog.start();

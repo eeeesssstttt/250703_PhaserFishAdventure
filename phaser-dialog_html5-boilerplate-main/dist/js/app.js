@@ -1,5 +1,7 @@
 // console.log(Phaser);
 
+import {createDialogEngine} from "./dialogEngine.js";
+
 var config = {
     type: Phaser.AUTO,
     width: 600,
@@ -13,234 +15,337 @@ var config = {
 
 var game = new Phaser.Game(config);
 
+
+var buttons = [];
+var buttonText = [];
+var chapterList = [];
+var displayedMainText = [];
+var responseNumber = 0;
+
+//SCRIPT
+
+var script = 
+`
+===startFishing===
+Start fishing?
++ Yes -> _1stFishing
++ No -> noFishing
+
+===_1stFishing===
+You attach some bait to the hook at the end of your line.
+You draw your pole back and throw the line quite far.
+The baited hook sinks and now we wait. -> _1stFish
+
+===_1stFish===
+As you pull the fish out of the water, a single yellow eye facing you, it speaks:
+"I'll answer any question you have, if you release me."
++ (release the fish) -> _1stRelease
++ (don't release the fish) -> nonRelease
+
+===_1stRelease===
+You drop the fish back into the water. It swims in circles, waiting.
++ Why do fish bite when there's no bait? -> message
++ What's in the water? -> water
++ Do fish feel pain? -> fishPain
+
+===message===
+"Because the ones who speak want to send a message." -> keepFishing
+
+===water===
+"There's a fine green mist near the surface." -> keepFishing
+
+===fishPain===
+"Yes." -> keepFishing
+
+===keepFishing===
+Keep fishing?
++ Yes -> _2ndFishing
++ No -> end
+
+===_2ndFishing===
+You bait your hook again and throw the line. 
+As you wait for another fish to bite, your thoughts wander. -> _2ndFish
+
+===_2ndFish===
+You feel a powerful fish pulling the line deep into the water.
+Its pale face appears near the surface.
+The line snaps. -> end
+
+===nonRelease===
+You decide to keep the fish and put it in your plastic bucket. The fish flops around sadly. -> keepFishing
+
+===noFishing===
+You sit by the water and enjoy the landscape. 
+Who needs to know what lies under the waves, anyway.
+
+===end===
+You walk away from the water. 
+...
+New Jersey fish are a special kind.
+`
+
 function preload(){
     this.load.image('lake', 'assets/lake_hopatcong.jpg');
     // this.load.image('sunfish', 'assets/sunfish.jpg');
     this.load.image('bass', 'assets/largemouth_bass_transparent.png');
-    this.load.spritesheet('talking_sunfish', 'assets/talking_sunfish_smaller_with_sad.png', {frameWidth: 640, frameHeight: 480});
+    this.load.spritesheet('talkingSunfish', 'assets/talking_sunfish_smaller_with_sad.png', {frameWidth: 640, frameHeight: 480});
     this.load.image('textbox', 'assets/textbox_redrawn.png');
 }
 
 function create(){
 
-// BACKGROUND
+//BACKGROUND
 
-    lake = this.add.image(config.width/2, config.height/2, 'lake');
+    var lake = this.add.image(config.width/2, config.height/2, 'lake');
     lake.setScale(1.2);
 
-// STILL SUNFISH
+//STILL SUNFISH
 
     // sunfish = this.add.image(300, 400, 'sunfish');
     // sunfish.setScale(0.1);
     // sunfish.visible = false;
 
-// STILL BASS
+//STILL BASS
 
-    bass = this.add.image(300, 550, 'bass');
+    var bass = this.add.image(config.width/2 + 60, config.height/2 + 120, 'bass');
     bass.setScale(0.2)
     bass.visible = false;
 
-// ANIMATED SUNFISH
-
-    this.anims.create({
-        key: "neutral",
-        frameRate: 1,
-        frames: this.anims.generateFrameNumbers("talking_sunfish", {start: 0, end: 0}),
-        repeat: 0
-    })
+//ANIMATED SUNFISH
 
     this.anims.create({
         key: "talk",
         frameRate: 2,
-        frames: this.anims.generateFrameNumbers("talking_sunfish", {start: 0, end: 1}),
+        frames: this.anims.generateFrameNumbers("talkingSunfish", {start: 0, end: 1}),
         repeat: -1
     });
 
     this.anims.create({
-        key: "sad",
+        key: "cry",
         frameRate: 2,
-        frames: this.anims.generateFrameNumbers("talking_sunfish", {start: 2, end: 6}),
+        frames: this.anims.generateFrameNumbers("talkingSunfish", {start: 2, end: 6}),
         repeat: 0
     });
 
-    talkingfish = this.add.sprite (300, 383, "talking_sunfish").setScale(0.7);
+    var talkingFish = this.add.sprite (300, 383, "talkingSunfish").setScale(0.7);
 
-    talkingfish.visible = false;
+    // talkingFish.play("talk");
 
-//// TEXT DISPLAY
+    talkingFish.visible = false;
 
-    var text_offset = 12;
+//TEXT DISPLAY
 
-// FISH MOOD    
+    var textOffset = 7;
 
-    var mood_x = 190;
-    var mood_y = 180;
-    var mood_width = 200;
-    var mood_height = 30;
+//FISH MOOD    
 
-    mood_nineslice = this.add.nineslice(
-        mood_x, mood_y,
+    var moodX = 190;
+    var moodY = 180;
+    var moodWidth = 200;
+    var moodHeight = 30;
+
+    var moodBox = this.add.nineslice(
+        moodX, moodY,
         "textbox", undefined,
-        mood_width, mood_height,
+        moodWidth, moodHeight,
         4, 4,
         4, 4
     );
 
-    mood_nineslice.visible = false;
-
-    mood = this.add.text(
-        mood_x - mood_width/2 + text_offset, 
-        mood_y - mood_height/2 + text_offset, 
-        '---', 
+    var mood = this.add.text(
+        moodX - moodWidth/2 + textOffset, 
+        moodY - moodHeight/2 + textOffset, 
+        '', 
         { fontFamily: 'Arial', 
             fontSize: 14, 
             color: '#000000',
             align: 'left',
-            wordWrap: { width: 350 }, });
-
+            wordWrap: { width: 350 }
+        });
+            
+    
+    moodBox.visible = false;
     mood.visible = false;
 
-// FISH SPEECH 
+    // mood.text = 'FISSSSHHHH';
 
-    var fish_speech_x = config.width/2;
-    var answer1_y = 605;
-    var fish_speech_width = 400;
-    var fish_speech_height = 60;
+//MAIN TEXT 
 
-    fish_speech_nineslice = this.add.nineslice(
-        fish_speech_x, answer1_y,
+    var mainTextX = config.width/2;
+    var mainTextY = 605;
+    var mainTextWidth = 400;
+    var mainTextHeight = 60;
+
+    var mainTextbox = this.add.nineslice(
+        mainTextX, mainTextY,
         "textbox", undefined,
-        fish_speech_width, fish_speech_height,
+        mainTextWidth, mainTextHeight,
         4, 4,
         4, 4
     );
-
-    fish_speech_nineslice.visible = false;
-
-    fish_speech = this.add.text(
-        fish_speech_x - fish_speech_width/2 + text_offset, answer1_y - fish_speech_height/2 + text_offset, 
-        '---', 
+    
+    var mainText = this.add.text(
+        mainTextX - mainTextWidth/2 + textOffset, mainTextY - mainTextHeight/2 + textOffset, 
+        '', 
         { fontFamily: 'Arial', 
             fontSize: 14, 
             color: '#000000',
             align: 'left',
-            wordWrap: { width: 350 }, });
-
-    fish_speech.visible = false;
+            wordWrap: { width: 390 }
+        });
+        
+    mainTextbox.visible = false;
+    mainText.visible = false;
     
-//// PLAYER ANSWERS
+//PLAYER ANSWERS - BUTTONS
 
-    var answer_width = 300;
-    var answer_height = 30;
-    var answer_x = config.width/2 +50;
+    var buttonWidth = 300;
+    var buttonHeight = 30;
+    var buttonX = config.width/2 +50;
 
-    // ANSWER 1
+    for (let i = 0; i < 3; i++){
 
-    var answer1_y = answer1_y + 70;
+        buttons[i] = this.add.nineslice(
+            buttonX, mainTextY + 70 + i*40,
+            "textbox", undefined,
+            buttonWidth, buttonHeight,
+            4, 4,
+            4, 4
+        );
 
-    answer1_nineslice = this.add.nineslice(
-        answer_x, answer1_y,
-        "textbox", undefined,
-        answer_width, answer_height,
-        4, 4,
-        4, 4
-    );
+        buttons[i].setInteractive();
+        buttons[i].on('pointerdown', function(){
+            if(buttons[i].go == "nonRelease"){talkingFishCries()}
+            if(buttons[i].go == "_1stRelease"){hideTalkingFish()}
+            dialogEngine.goTo(buttons[i].go);
+            chapterList.push(buttons[i].go);
+            resetButtons();
+            responseNumber = 0;
+            resetMainText();
+        });
 
-    answer1_nineslice.visible = false;
-    
-    answer1 = this.add.text(
-        answer_x - answer_width/2 + text_offset, answer1_y - answer_height/2 + text_offset, 
-        '---', 
-        { fontFamily: 'Arial', 
-            fontSize: 14, 
-            color: '#000000',
-            align: 'left',
-            wordWrap: { width: 350 }, });
+        buttonText[i] = this.add.text(
+            buttonX - buttonWidth/2 + textOffset, 
+            (mainTextY + 70 + i*40) - buttonHeight/2 + textOffset, 
+            'option ' + i, 
+            { fontFamily: 'Arial', 
+                fontSize: 14, 
+                color: '#000000',
+                align: 'left',
+                wordWrap: { width: 350 }, }
+        );
 
-    answer1.visible = false;
-            
-    function answer1_effect(){
-        talkingfish.play("sad");
+        buttons[i].visible = false;
+        buttonText[i].visible = false;
     }
 
-    answer1_nineslice.setInteractive();
-    answer1_nineslice.on('pointerdown', function(pointer){answer1_effect()});
-
-// ANSWER 2
-
-    var answer2_y = answer1_y + 30;
-
-    answer2_nineslice = this.add.nineslice(
-        answer_x, answer2_y,
-        "textbox", undefined,
-        answer_width, answer_height,
-        4, 4,
-        4, 4
-    );
-
-    answer2_nineslice.visible = false;
-    
-    answer2 = this.add.text(
-        answer_x - answer_width/2 + text_offset, answer2_y - answer_height/2 + text_offset, 
-        '---', 
-        { fontFamily: 'Arial', 
-            fontSize: 14, 
-            color: '#000000',
-            align: 'left',
-            wordWrap: { width: 350 }, });
-
-    answer2.visible = false;
-            
-    function answer2_effet(){
-        talkingfish.play("talk");
+    var resetMainText = function(){
+        mainText.text = '';
+        mainTextbox.visible = false;
+        mainText.visible = false;
+        displayedMainText = [];
     }
 
-    answer2_nineslice.setInteractive();
-    answer2_nineslice.on('pointerdown', function(pointer){answer2_effet()});
-
-// FISH QUESTION 3
-
-    var answer3_y = answer2_y + 30;
-
-    answer3_nineslice = this.add.nineslice(
-        answer_x, answer3_y,
-        "textbox", undefined,
-        answer_width, answer_height,
-        4, 4,
-        4, 4
-    );
-
-    answer3_nineslice.visible = false;
-    
-    answer3 = this.add.text(
-        answer_x - answer_width/2 + text_offset, answer3_y - answer_height/2 + text_offset, 
-        '---', 
-        { fontFamily: 'Arial', 
-            fontSize: 14, 
-            color: '#000000',
-            align: 'left',
-            wordWrap: { width: 350 }, });
-    
-    answer3.visible = false;
-    
-        function answer3_effect() {
-        answer3_nineslice.visible = false; 
-        answer3.visible = false;
+    var resetButtons = function (){
+        for (let i = 0; i < buttons.length; i++){
+            buttons[i].visible = false;
+            buttonText[i].text = '';
+            buttonText[i].visible = false;
+            chapterList = [];
+        }
     }
 
-    answer3_nineslice.setInteractive();
-    answer3_nineslice.on('pointerdown', function(pointer){answer3_effect()});
+    var resetMoodBox = function(){
+        moodBox.visible = false;
+        mood.visible = false;
+        mood.text = "";
+    }
 
+    var displayMainText = function(data){
+        if (displayedMainText.length >= 1){
+            if (displayedMainText[displayedMainText.length - 1].go){
+                resetMainText();
+            }
+        }
+        displayedMainText.push(data);
+
+        switch(data.go){
+            case "_1stFish":
+                setTimeout(() => talkingFishTalks(), 4000)
+                break;
+            case "_2ndFish":
+                setTimeout(() => evilBassBasses(), 4000)
+                break;
+            case "keepFishing":
+                hideTalkingFish();
+                break;
+            case "end":
+                hideBass();
+                break;
+        }
+        
+        mainTextbox.visible = true;
+        mainText.visible = true;
+        
+        mainText.text += `${data.m}\n`;
+    }
+
+    var talkingFishTalks = function(){
+        talkingFish.visible = true;
+        talkingFish.play("talk");
+        moodBox.visible = true;
+        mood.visible = true;
+        mood.text = "Mood: Desperate";
+    }
+
+    var talkingFishCries = function(){
+        talkingFish.visible = true;
+        talkingFish.play("cry");
+        moodBox.visible = true;
+        mood.visible = true;
+        mood.text = "Mood: Desperate";
+    }
+
+    var hideTalkingFish = function(){
+        resetMoodBox();
+        talkingFish.visible = false;      
+    }
+
+    var hideBass = function(){
+        resetMoodBox;
+        bass.visible = false;
+    }
+
+    var evilBassBasses = function(){
+        bass.visible = true;
+        moodBox.visible = true;
+        mood.visible = true;
+        mood.text = "Mood: Ruthless";
+    }
+
+    var displayResponse = function(data){
+        buttonText[responseNumber].text = data.r;
+        buttons[responseNumber].go = data.go;
+
+        buttonText[responseNumber].visible = true;
+        buttons[responseNumber].visible = true;
+
+        responseNumber ++;
+    }
+
+    var dialogEngine = createDialogEngine(script, displayMainText, displayResponse);
+    dialogEngine.start();
 }
 
 function update(){
-
 }
 
 //NEXT:
 
-// connect dialog
+//adapt text box size. (height += something...)
 
 // depending on scene, configure mood, animations, speech and answers display
 
 // answer choice triggers scene.
+
+// make bass face a little less transparent and bluer. (use background image and place specifically, transp over that.) Or just overlay image like sunfish.
